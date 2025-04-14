@@ -408,60 +408,7 @@ def create_plotly_animated_graph(G, path=None):
     """Create an interactive animated graph using Plotly"""
     pos = nx.get_node_attributes(G, 'pos')
     
-    # Create edges
-    edge_x = []
-    edge_y = []
-    edge_colors = []
-    edge_widths = []
-    edge_texts = []
-    
-    for u, v in G.edges():
-        x0, y0 = pos[u]
-        x1, y1 = pos[v]
-        
-        # Add edge coordinates
-        edge_x.extend([x0, x1, None])
-        edge_y.extend([y0, y1, None])
-        
-        # Determine color based on traffic
-        traffic = G[u][v]['traffic']
-        if traffic < 0.3:
-            color = 'rgba(76, 175, 80, 0.7)'  # Green
-        elif traffic < 0.7:
-            color = 'rgba(255, 152, 0, 0.7)'  # Orange
-        else:
-            color = 'rgba(244, 67, 54, 0.7)'  # Red
-        
-        # Determine if this edge is in the path
-        is_path_edge = path and u in path and v in path and path.index(u) == path.index(v) - 1
-        
-        if is_path_edge:
-            color = 'rgba(63, 81, 181, 1.0)'  # Blue for path
-            width = 5
-        else:
-            width = 2 + traffic * 3
-        
-        # Add color and width for each segment (including None)
-        edge_colors.extend([color, color, color])
-        edge_widths.extend([width, width, width])
-        
-        # Add hover text
-        traffic_pct = int(traffic * 100)
-        edge_text = f"Road: {G[u][v]['name']}<br>Distance: {G[u][v]['distance']} km<br>Traffic: {traffic_pct}%"
-        edge_texts.extend([edge_text, edge_text, ""])
-    
-    # Create edge trace
-    edge_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        line=dict(width=0.5, color='#888'),
-        hoverinfo='text',
-        mode='lines',
-        line_color=edge_colors,
-        line_width=edge_widths,
-        text=edge_texts
-    )
-    
-    # Create nodes
+    # Create node trace
     node_x = []
     node_y = []
     node_texts = []
@@ -490,6 +437,47 @@ def create_plotly_animated_graph(G, path=None):
         hovertext=node_texts
     )
     
+    # Create separate edge traces for each edge to handle different colors
+    edge_traces = []
+    
+    for u, v in G.edges():
+        x0, y0 = pos[u]
+        x1, y1 = pos[v]
+        
+        # Determine color based on traffic
+        traffic = G[u][v]['traffic']
+        if traffic < 0.3:
+            color = 'rgba(76, 175, 80, 0.7)'  # Green
+        elif traffic < 0.7:
+            color = 'rgba(255, 152, 0, 0.7)'  # Orange
+        else:
+            color = 'rgba(244, 67, 54, 0.7)'  # Red
+        
+        # Determine if this edge is in the path
+        is_path_edge = path and u in path and v in path and path.index(u) == path.index(v) - 1
+        
+        if is_path_edge:
+            color = 'rgba(63, 81, 181, 1.0)'  # Blue for path
+            width = 5
+        else:
+            width = 2 + traffic * 3
+        
+        # Add hover text
+        traffic_pct = int(traffic * 100)
+        edge_text = f"Road: {G[u][v]['name']}<br>Distance: {G[u][v]['distance']} km<br>Traffic: {traffic_pct}%"
+        
+        # Create a trace for this edge
+        edge_trace = go.Scatter(
+            x=[x0, x1, None],
+            y=[y0, y1, None],
+            line=dict(width=width, color=color),
+            hoverinfo='text',
+            mode='lines',
+            text=edge_text
+        )
+        
+        edge_traces.append(edge_trace)
+    
     # Create vehicle trace if path is provided
     vehicle_trace = None
     if path and len(path) > 1:
@@ -513,7 +501,7 @@ def create_plotly_animated_graph(G, path=None):
     
     # Create figure
     fig = go.Figure(
-        data=[edge_trace, node_trace] + ([vehicle_trace] if vehicle_trace else []),
+        data=edge_traces + [node_trace] + ([vehicle_trace] if vehicle_trace else []),
         layout=go.Layout(
             title='NCR Traffic Network - Interactive Simulation',
             titlefont_size=16,
@@ -559,7 +547,7 @@ def create_plotly_animated_graph(G, path=None):
             
             # Create a frame with updated vehicle position
             frame = go.Frame(
-                data=[edge_trace, node_trace, 
+                data=edge_traces + [node_trace, 
                      go.Scatter(x=[x], y=[y], mode='markers', 
                                marker=dict(color='#3F51B5', size=15, symbol='circle',
                                           line=dict(color='white', width=2)))],

@@ -1,0 +1,33 @@
+{
+  "intersections": {
+    "A": { "pos": [0, 0], "name": "Downtown" },
+    "B": { "pos": [2, 4], "name": "Uptown" },
+    "C": { "pos": [5, 2], "name": "Eastside" },
+    "D": { "pos": [3, -2], "name": "Southside" },
+    "E": { "pos": [-3, 3], "name": "Westside" },
+    "F": { "pos": [1, 6], "name": "North End" },
+    "G": { "pos": [6, 0], "name": "East End" },
+    "H": { "pos": [-2, -3], "name": "Southwest" },
+    "I": { "pos": [4, 5], "name": "Northeast" },
+    "J": { "pos": [-4, -1], "name": "West End" }
+  },
+  "roads": [
+    { "from": "A", "to": "B", "distance": 5, "traffic": 0.8, "name": "Main St" },
+    { "from": "A", "to": "C", "distance": 6, "traffic": 0.5, "name": "Broadway" },
+    { "from": "A", "to": "D", "distance": 4, "traffic": 0.3, "name": "Park Ave" },
+    { "from": "A", "to": "E", "distance": 7, "traffic": 0.6, "name": "1st Ave" },
+    { "from": "B", "to": "F", "distance": 3, "traffic": 0.2, "name": "Hill Rd" },
+    { "from": "B", "to": "I", "distance": 4, "traffic": 0.4, "name": "University Blvd" },
+    { "from": "C", "to": "G", "distance": 2, "traffic": 0.1, "name": "Market St" },
+    { "from": "C", "to": "I", "distance": 5, "traffic": 0.7, "name": "Highland Dr" },
+    { "from": "D", "to": "G", "distance": 6, "traffic": 0.5, "name": "River Rd" },
+    { "from": "D", "to": "H", "distance": 5, "traffic": 0.3, "name": "Valley Blvd" },
+    { "from": "E", "to": "F", "distance": 4, "traffic": 0.4, "name": "Forest Ave" },
+    { "from": "E", "to": "J", "distance": 3, "traffic": 0.2, "name": "Lake Dr" },
+    { "from": "F", "to": "I", "distance": 3, "traffic": 0.3, "name": "Mountain View Rd" },
+    { "from": "G", "to": "I", "distance": 7, "traffic": 0.6, "name": "Sunset Blvd" },
+    { "from": "H", "to": "J", "distance": 4, "traffic": 0.4, "name": "Ocean Dr" },
+    { "from": "I", "to": "F", "distance": 2, "traffic": 0.2, "name": "Ridge Rd" },
+    { "from": "J", "to": "H", "distance": 3, "traffic": 0.3, "name": "Bay St" }
+  ]
+}

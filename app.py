@@ -1164,11 +1164,17 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Footer
-    st.markdown("""
-    <div class="footer">
-        Smart Traffic Flow Optimization System | Developed with ❤️ using Python & Streamlit
+    st.markdown(
+    """
+    <hr style="margin-top: 2rem; margin-bottom: 0.5rem;">
+    <div style='text-align: center; color: #3D52A0; font-size: 0.9rem;'>
+        🚦 <strong>Smart Traffic Flow Optimization System</strong><br>
+        Developed with DAA  using <a href="https://www.python.org" style="color: #7091E6;" target="_blank">Python</a> & 
+        <a href="https://streamlit.io" style="color: #7091E6;" target="_blank">Streamlit</a>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True
+)
 
 if __name__ == "__main__":
     main()

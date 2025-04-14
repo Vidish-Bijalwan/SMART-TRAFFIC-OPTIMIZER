@@ -1,15 +1,5 @@
 def bellman_ford_algorithm(G, source, target):
-    """
-    Implementation of Bellman-Ford algorithm for finding the shortest path
-    
-    Args:
-        G: NetworkX graph
-        source: Source node
-        target: Target node
-        
-    Returns:
-        (distance, path): Tuple containing the shortest distance and the path
-    """
+
     # Initialize distances with infinity for all nodes except the source
     distances = {node: float('infinity') for node in G.nodes()}
     distances[source] = 0

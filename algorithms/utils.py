@@ -2,18 +2,7 @@ import networkx as nx
 import random
 
 def generate_random_graph(num_nodes=10, edge_probability=0.3, min_weight=1, max_weight=10):
-    """
-    Generate a random directed graph
     
-    Args:
-        num_nodes: Number of nodes
-        edge_probability: Probability of edge creation between any two nodes
-        min_weight: Minimum edge weight
-        max_weight: Maximum edge weight
-        
-    Returns:
-        G: NetworkX DiGraph
-    """
     G = nx.DiGraph()
     
     # Add nodes with positions

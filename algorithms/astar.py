@@ -2,17 +2,7 @@ import heapq
 import math
 
 def astar_algorithm(G, source, target):
-    """
-    Implementation of A* algorithm for finding the shortest path
     
-    Args:
-        G: NetworkX graph
-        source: Source node
-        target: Target node
-        
-    Returns:
-        (distance, path): Tuple containing the shortest distance and the path
-    """
     # Get positions for heuristic calculation
     pos = {node: data['pos'] for node, data in G.nodes(data=True)}
     

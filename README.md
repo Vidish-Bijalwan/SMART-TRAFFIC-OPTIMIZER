@@ -75,3 +75,5 @@ This application can be deployed on Vercel using the Streamlit-Vercel integratio
 
 MIT
 # SMART-TRAFFIC-OPTIMIZER
+
+**Deployed site Link** : https://smart-traffic-optimizer-vidish-bijalwan.streamlit.app/

@@ -60,9 +60,6 @@ smart-traffic-optimizer/
 - **A* Algorithm**: An extension of Dijkstra's that uses heuristics to speed up the search
 - **Bellman-Ford Algorithm**: An algorithm that computes shortest paths from a single source vertex to all other vertices
 
-## Deployment
-
-This application can be deployed on Vercel using the Streamlit-Vercel integration.
 
 ## Future Enhancements
 

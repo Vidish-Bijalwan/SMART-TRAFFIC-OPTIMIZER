@@ -3,153 +3,55 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import time
+import time, json, random, os, io, base64
+from datetime import datetime
+from PIL import Image
+import folium
+from streamlit_folium import folium_static
+import plotly.graph_objects as go
+import plotly.express as px
+from matplotlib import cm
+import matplotlib.animation as animation
+from matplotlib.animation import FuncAnimation
+
+# Import algorithms from separate modules
 from algorithms.dijkstra import dijkstra_algorithm
 from algorithms.astar import astar_algorithm
 from algorithms.bellman_ford import bellman_ford_algorithm
-import json
-from streamlit_folium import folium_static
-import folium
-import random
-import os
-from PIL import Image
-import matplotlib.animation as animation
-from matplotlib.animation import FuncAnimation
-import io
-import base64
-from matplotlib import cm
-import plotly.graph_objects as go
-import plotly.express as px
-from datetime import datetime
 
-# Set page configuration
-st.set_page_config(
-    page_title="Smart Traffic Flow Optimizer",
-    page_icon="🚦",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Page configuration and simplified CSS
+st.set_page_config(page_title="Smart Traffic Flow Optimizer", page_icon="🚦", layout="wide")
 
-# Custom CSS
-st.markdown("""
+# Simplified CSS
+CUSTOM_CSS = """
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        color: #FF6B35;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-    }
-    .sub-header {
-        font-size: 1.5rem;
-        color: #424242;
-        font-weight: 500;
-    }
-    .card {
-        padding: 20px;
-        border-radius: 10px;
-        background-color: #f8f9fa;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin-bottom: 20px;
-        border-top: 4px solid #FF6B35;
-    }
-    .metric-card {
-        background-color: #fff8f3;
-        border-left: 5px solid #FF6B35;
-    }
-    .info-text {
-        font-size: 0.9rem;
-        color: #616161;
-    }
-    .highlight {
-        background-color: #fff0e6;
-        padding: 2px 5px;
-        border-radius: 3px;
-        font-weight: 500;
-        color: #FF6B35;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: #f5f5f5;
-        border-radius: 4px 4px 0px 0px;
-        gap: 1px;
-        padding-top: 10px;
-        padding-bottom: 10px;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #FF6B35 !important;
-        color: white !important;
-    }
-    .traffic-badge {
-        display: inline-block;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-weight: bold;
-        font-size: 0.8rem;
-    }
-    .traffic-low {
-        background-color: #DCEDC8;
-        color: #33691E;
-    }
-    .traffic-medium {
-        background-color: #FFE0B2;
-        color: #E65100;
-    }
-    .traffic-high {
-        background-color: #FFCDD2;
-        color: #B71C1C;
-    }
-    .stButton>button {
-        background-color: #FF6B35;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 0.5rem 1rem;
-        font-weight: 500;
-    }
-    .stButton>button:hover {
-        background-color: #E55A24;
-    }
-    .stSelectbox>div>div {
-        background-color: white;
-        border-radius: 4px;
-    }
-    .footer {
-        text-align: center;
-        margin-top: 2rem;
-        padding: 1rem;
-        font-size: 0.8rem;
-        color: #9e9e9e;
-    }
-    .stDataFrame {
-        border-radius: 10px;
-        overflow: hidden;
-    }
-    .stDataFrame [data-testid="stTable"] {
-        border-radius: 10px;
-    }
-    .stDataFrame thead tr th {
-        background-color: #FF6B35 !important;
-        color: white !important;
-    }
-    .stDataFrame tbody tr:nth-child(even) {
-        background-color: #fff8f3;
-    }
+  .main-header { font-size: 2.5rem; color: #FF6B35; font-weight: 700; }
+  .sub-header { font-size: 1.5rem; color: #424242; font-weight: 500; }
+  .card { padding: 20px; border-radius: 10px; background-color: #f8f9fa; 
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; border-top: 4px solid #FF6B35; }
+  .metric-card { background-color: #fff8f3; border-left: 5px solid #FF6B35; }
+  .info-text { font-size: 0.9rem; color: #616161; }
+  .highlight { background-color: #fff0e6; padding: 2px 5px; border-radius: 3px; font-weight: 500; color: #FF6B35; }
+  .traffic-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-weight: bold; font-size: 0.8rem; }
+  .traffic-low { background-color: #DCEDC8; color: #33691E; }
+  .traffic-medium { background-color: #FFE0B2; color: #E65100; }
+  .traffic-high { background-color: #FFCDD2; color: #B71C1C; }
+  .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+  .stTabs [data-baseweb="tab"] { height: 50px; background-color: #f5f5f5; border-radius: 4px 4px 0 0; padding: 10px; }
+  .stTabs [aria-selected="true"] { background-color: #FF6B35 !important; color: white !important; }
+  .stButton>button { background-color: #FF6B35; color: white; border: none; border-radius: 4px; padding: 0.5rem 1rem; }
+  .stButton>button:hover { background-color: #E55A24; }
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-# Load data
+# Data loading and graph creation
 @st.cache_data
 def load_sample_data():
-    # Check if data file exists, otherwise create sample data
     if os.path.exists("data/city_graph.json"):
         with open("data/city_graph.json", "r") as f:
             return json.load(f)
     else:
-        # Create sample data
         return generate_sample_city_data()
 
 def generate_sample_city_data():
@@ -193,23 +95,13 @@ def create_graph_from_data(data, consider_traffic=True):
     """Create a NetworkX graph from the data"""
     G = nx.DiGraph()
     
-    # Add nodes
     for node_id, node_data in data["intersections"].items():
         G.add_node(node_id, pos=node_data["pos"], name=node_data["name"])
     
-    # Add edges
     for road in data["roads"]:
-        from_node = road["from"]
-        to_node = road["to"]
-        distance = road["distance"]
-        traffic = road["traffic"]
-        name = road["name"]
-        
-        # Calculate weight based on distance and traffic
-        weight = distance * (1 + traffic * 2) if consider_traffic else distance
-        
-        G.add_edge(from_node, to_node, weight=weight, distance=distance, 
-                  traffic=traffic, name=name, color='blue', width=2)
+        weight = road["distance"] * (1 + road["traffic"] * 2) if consider_traffic else road["distance"]
+        G.add_edge(road["from"], road["to"], weight=weight, distance=road["distance"], 
+                  traffic=road["traffic"], name=road["name"], color='blue', width=2)
     
     return G
 
@@ -218,477 +110,28 @@ def visualize_graph(G, path=None, title="NCR Traffic Network"):
     plt.figure(figsize=(12, 8))
     pos = nx.get_node_attributes(G, 'pos')
     
-    # Create a colormap for traffic levels
-    edge_colors = []
-    edge_widths = []
+    edge_colors = ['#4CAF50' if G[u][v]['traffic'] < 0.3 else '#FF9800' if G[u][v]['traffic'] < 0.7 else '#F44336' for u, v in G.edges()]
+    edge_widths = [2 + G[u][v]['traffic'] * 3 for u, v in G.edges()]
     
-    for u, v in G.edges():
-        traffic = G[u][v]['traffic']
-        if traffic < 0.3:
-            edge_colors.append('#4CAF50')  # Green for low traffic
-        elif traffic < 0.7:
-            edge_colors.append('#FF9800')  # Orange for medium traffic
-        else:
-            edge_colors.append('#F44336')  # Red for high traffic
-        
-        edge_widths.append(2 + traffic * 3)  # Width based on traffic
+    nx.draw_networkx_nodes(G, pos, node_size=700, node_color='#FF6B35', alpha=0.9, edgecolors='white', linewidths=2)
+    nx.draw_networkx_edges(G, pos, width=edge_widths, edge_color=edge_colors, arrowsize=15, alpha=0.7)
     
-    # Draw nodes with a better style
-    nx.draw_networkx_nodes(G, pos, node_size=700, node_color='#FF6B35', 
-                          alpha=0.9, edgecolors='white', linewidths=2)
-    
-    # Draw edges
-    nx.draw_networkx_edges(G, pos, width=edge_widths, edge_color=edge_colors, 
-                          arrowsize=15, connectionstyle='arc3,rad=0.1', alpha=0.7)
-    
-    # Highlight path if provided
     if path:
         path_edges = list(zip(path, path[1:]))
-        nx.draw_networkx_edges(G, pos, edgelist=path_edges, width=5, 
-                              edge_color='#3F51B5', arrowsize=20, alpha=1.0)
+        nx.draw_networkx_edges(G, pos, edgelist=path_edges, width=5, edge_color='#3F51B5', arrowsize=20, alpha=1.0)
     
-    # Draw labels with better styling
     node_labels = {node: f"{G.nodes[node]['name']}" for node in G.nodes()}
-    nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=11, 
-                           font_weight='bold', font_color='white')
+    nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=11, font_weight='bold', font_color='white')
     
-    # Draw edge labels with better formatting
-    edge_labels = {}
-    for u, v in G.edges():
-        traffic_pct = int(G[u][v]['traffic'] * 100)
-        if traffic_pct < 30:
-            traffic_text = f"🟢 {traffic_pct}%"
-        elif traffic_pct < 70:
-            traffic_text = f"🟠 {traffic_pct}%"
-        else:
-            traffic_text = f"🔴 {traffic_pct}%"
-        
-        edge_labels[(u, v)] = f"{G[u][v]['name']}\n{G[u][v]['distance']}km, {traffic_text}"
+    edge_labels = {(u, v): f"{G[u][v]['name']}\n{G[u][v]['distance']}km, {'🟢' if G[u][v]['traffic'] < 0.3 else '🟠' if G[u][v]['traffic'] < 0.7 else '🔴'} {int(G[u][v]['traffic']*100)}%" 
+                  for u, v in G.edges()}
     
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8, 
-                                font_color='#333333', bbox=dict(facecolor='white', edgecolor='none', 
-                                                              alpha=0.7, pad=2))
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8, font_color='#333333')
     
     plt.title(title, fontsize=16, fontweight='bold', pad=20, color='#333333')
     plt.axis('off')
     plt.tight_layout()
     return plt
-
-def create_animated_graph(G, path=None):
-    """Create an animated graph showing traffic flow"""
-    fig, ax = plt.subplots(figsize=(12, 8))
-    pos = nx.get_node_attributes(G, 'pos')
-    
-    # Draw nodes
-    nodes = nx.draw_networkx_nodes(G, pos, node_size=700, node_color='#FF6B35', 
-                                  alpha=0.9, edgecolors='white', linewidths=2, ax=ax)
-    
-    # Draw labels
-    node_labels = {node: f"{G.nodes[node]['name']}" for node in G.nodes()}
-    nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=11, 
-                           font_weight='bold', font_color='white', ax=ax)
-    
-    # Initialize edges with traffic colors
-    edges = {}
-    for u, v in G.edges():
-        traffic = G[u][v]['traffic']
-        if traffic < 0.3:
-            color = '#4CAF50'  # Green for low traffic
-        elif traffic < 0.7:
-            color = '#FF9800'  # Orange for medium traffic
-        else:
-            color = '#F44336'  # Red for high traffic
-        
-        width = 2 + traffic * 3
-        edges[(u, v)] = nx.draw_networkx_edges(G, pos, edgelist=[(u, v)], 
-                                             width=width, edge_color=color, 
-                                             arrowsize=15, connectionstyle='arc3,rad=0.1', 
-                                             alpha=0.7, ax=ax)
-    
-    # Highlight path if provided
-    path_edges = []
-    if path:
-        path_edges = list(zip(path, path[1:]))
-        path_lines = nx.draw_networkx_edges(G, pos, edgelist=path_edges, width=5, 
-                                          edge_color='#3F51B5', arrowsize=20, 
-                                          alpha=1.0, ax=ax)
-    
-    # Draw edge labels
-    edge_labels = {}
-    for u, v in G.edges():
-        traffic_pct = int(G[u][v]['traffic'] * 100)
-        if traffic_pct < 30:
-            traffic_text = f"🟢 {traffic_pct}%"
-        elif traffic_pct < 70:
-            traffic_text = f"🟠 {traffic_pct}%"
-        else:
-            traffic_text = f"🔴 {traffic_pct}%"
-        
-        edge_labels[(u, v)] = f"{G[u][v]['name']}\n{G[u][v]['distance']}km, {traffic_text}"
-    
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8, 
-                                font_color='#333333', bbox=dict(facecolor='white', 
-                                                              edgecolor='none', 
-                                                              alpha=0.7, pad=2), ax=ax)
-    
-    # Add vehicles on the path
-    vehicles = []
-    if path and len(path) > 1:
-        # Create a vehicle (car icon) at the start of the path
-        vehicle = ax.plot([], [], 'o', color='#3F51B5', markersize=10, 
-                         markeredgecolor='white', markeredgewidth=1)[0]
-        vehicles.append((vehicle, path))
-    
-    ax.set_title("NCR Traffic Network - Live Simulation", fontsize=16, 
-                fontweight='bold', pad=20, color='#333333')
-    ax.axis('off')
-    plt.tight_layout()
-    
-    # Animation function
-    def update(frame):
-        # Update traffic levels
-        for u, v in G.edges():
-            # Simulate traffic fluctuation
-            traffic_change = np.sin(frame/10 + hash((u, v)) % 10) * 0.05
-            new_traffic = max(0.1, min(0.9, G[u][v]['traffic'] + traffic_change))
-            G[u][v]['traffic'] = new_traffic
-            
-            # Update edge color based on new traffic
-            if new_traffic < 0.3:
-                color = '#4CAF50'  # Green
-            elif new_traffic < 0.7:
-                color = '#FF9800'  # Orange
-            else:
-                color = '#F44336'  # Red
-            
-            width = 2 + new_traffic * 3
-            
-            # Skip updating path edges
-            if path and (u, v) in path_edges:
-                continue
-                
-            # Update edge appearance
-            edges[(u, v)][0].set_color(color)
-            edges[(u, v)][0].set_linewidth(width)
-        
-        # Update vehicle positions
-        for vehicle, vehicle_path in vehicles:
-            if len(vehicle_path) < 2:
-                continue
-                
-            # Calculate position along the path
-            path_position = frame % (len(vehicle_path) - 1)
-            path_index = int(path_position)
-            path_fraction = path_position - path_index
-            
-            # Get the current edge
-            u = vehicle_path[path_index]
-            v = vehicle_path[path_index + 1]
-            
-            # Interpolate position
-            start_x, start_y = pos[u]
-            end_x, end_y = pos[v]
-            
-            x = start_x + path_fraction * (end_x - start_x)
-            y = start_y + path_fraction * (end_y - start_y)
-            
-            vehicle.set_data([x], [y])
-        
-        return [edges[(u, v)][0] for u, v in G.edges()] + [vehicle for vehicle, _ in vehicles]
-    
-    # Create animation
-    ani = FuncAnimation(fig, update, frames=100, interval=100, blit=True)
-    
-    # Convert animation to HTML5 video
-    plt.close(fig)  # Prevent display of the figure
-    
-    return ani
-
-def create_plotly_animated_graph(G, path=None):
-    """Create an interactive animated graph using Plotly"""
-    pos = nx.get_node_attributes(G, 'pos')
-    
-    # Create node trace
-    node_x = []
-    node_y = []
-    node_texts = []
-    
-    for node in G.nodes():
-        x, y = pos[node]
-        node_x.append(x)
-        node_y.append(y)
-        node_texts.append(f"City: {G.nodes[node]['name']}")
-    
-    # Create node trace
-    node_trace = go.Scatter(
-        x=node_x, y=node_y,
-        mode='markers+text',
-        hoverinfo='text',
-        text=[G.nodes[node]['name'] for node in G.nodes()],
-        textposition="top center",
-        textfont=dict(size=10, color='black'),
-        marker=dict(
-            showscale=False,
-            color='#FF6B35',
-            size=20,
-            line_width=2,
-            line=dict(color='white')
-        ),
-        hovertext=node_texts
-    )
-    
-    # Create separate edge traces for each edge to handle different colors
-    edge_traces = []
-    
-    for u, v in G.edges():
-        x0, y0 = pos[u]
-        x1, y1 = pos[v]
-        
-        # Determine color based on traffic
-        traffic = G[u][v]['traffic']
-        if traffic < 0.3:
-            color = 'rgba(76, 175, 80, 0.7)'  # Green
-        elif traffic < 0.7:
-            color = 'rgba(255, 152, 0, 0.7)'  # Orange
-        else:
-            color = 'rgba(244, 67, 54, 0.7)'  # Red
-        
-        # Determine if this edge is in the path
-        is_path_edge = path and u in path and v in path and path.index(u) == path.index(v) - 1
-        
-        if is_path_edge:
-            color = 'rgba(63, 81, 181, 1.0)'  # Blue for path
-            width = 5
-        else:
-            width = 2 + traffic * 3
-        
-        # Add hover text
-        traffic_pct = int(traffic * 100)
-        edge_text = f"Road: {G[u][v]['name']}<br>Distance: {G[u][v]['distance']} km<br>Traffic: {traffic_pct}%"
-        
-        # Create a trace for this edge
-        edge_trace = go.Scatter(
-            x=[x0, x1, None],
-            y=[y0, y1, None],
-            line=dict(width=width, color=color),
-            hoverinfo='text',
-            mode='lines',
-            text=edge_text
-        )
-        
-        edge_traces.append(edge_trace)
-    
-    # Create vehicle trace if path is provided
-    vehicle_trace = None
-    if path and len(path) > 1:
-        # Start at the first node in the path
-        start_node = path[0]
-        x, y = pos[start_node]
-        
-        vehicle_trace = go.Scatter(
-            x=[x], y=[y],
-            mode='markers',
-            marker=dict(
-                color='#3F51B5',
-                size=15,
-                symbol='circle',
-                line=dict(color='white', width=2)
-            ),
-            hoverinfo='text',
-            hovertext='Vehicle',
-            name='Vehicle'
-        )
-    
-    # Create figure
-    fig = go.Figure(
-        data=edge_traces + [node_trace] + ([vehicle_trace] if vehicle_trace else []),
-        layout=go.Layout(
-            title='NCR Traffic Network - Interactive Simulation',
-            titlefont_size=16,
-            showlegend=False,
-            hovermode='closest',
-            margin=dict(b=20, l=5, r=5, t=40),
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            plot_bgcolor='rgba(248,249,250,1)',
-            paper_bgcolor='rgba(248,249,250,1)',
-            updatemenus=[dict(
-                type="buttons",
-                buttons=[dict(
-                    label="Play",
-                    method="animate",
-                    args=[None, {"frame": {"duration": 100, "redraw": True}, "fromcurrent": True}]
-                )]
-            )]
-        )
-    )
-    
-    # Create animation frames if path is provided
-    if path and len(path) > 1:
-        frames = []
-        
-        for i in range(50):  # 50 frames of animation
-            # Calculate position along the path
-            path_length = len(path) - 1
-            path_position = (i % path_length)
-            path_index = int(path_position)
-            path_fraction = path_position - path_index
-            
-            # Get the current edge
-            u = path[path_index]
-            v = path[path_index + 1]
-            
-            # Interpolate position
-            start_x, start_y = pos[u]
-            end_x, end_y = pos[v]
-            
-            x = start_x + path_fraction * (end_x - start_x)
-            y = start_y + path_fraction * (end_y - start_y)
-            
-            # Create a frame with updated vehicle position
-            frame = go.Frame(
-                data=edge_traces + [node_trace, 
-                     go.Scatter(x=[x], y=[y], mode='markers', 
-                               marker=dict(color='#3F51B5', size=15, symbol='circle',
-                                          line=dict(color='white', width=2)))],
-                name=f"frame{i}"
-            )
-            frames.append(frame)
-        
-        fig.frames = frames
-    
-    return fig
-
-def create_folium_map(G, path=None):
-    """Create an interactive folium map"""
-    # Create a base map centered on Delhi (approximate coordinates)
-    base_lat, base_lon = 28.6139, 77.2090  # Delhi coordinates
-    scale = 0.05  # Scale factor for visualization
-    
-    m = folium.Map(location=[base_lat, base_lon], zoom_start=9, tiles="CartoDB positron")
-    
-    # Get positions
-    pos = nx.get_node_attributes(G, 'pos')
-    
-    # Add nodes as markers
-    for node, position in pos.items():
-        lat = base_lat + position[0] * scale
-        lon = base_lon + position[1] * scale
-        
-        popup_text = f"<b>{G.nodes[node]['name']}</b>"
-        
-        # Use different marker for nodes in the path
-        if path and node in path:
-            folium.Marker(
-                location=[lat, lon],
-                popup=popup_text,
-                icon=folium.Icon(color='red', icon='info-sign')
-            ).add_to(m)
-        else:
-            folium.Marker(
-                location=[lat, lon],
-                popup=popup_text,
-                icon=folium.Icon(color='blue', icon='info-sign')
-            ).add_to(m)
-    
-    # Add edges as lines
-    for u, v, data in G.edges(data=True):
-        u_pos = pos[u]
-        v_pos = pos[v]
-        
-        u_lat = base_lat + u_pos[0] * scale
-        u_lon = base_lon + u_pos[1] * scale
-        v_lat = base_lat + v_pos[0] * scale
-        v_lon = base_lon + v_pos[1] * scale
-        
-        # Determine line color and weight based on traffic
-        traffic = data['traffic']
-        if traffic < 0.3:
-            color = 'green'
-            weight = 3
-            opacity = 0.7
-        elif traffic < 0.7:
-            color = 'orange'
-            weight = 4
-            opacity = 0.8
-        else:
-            color = 'red'
-            weight = 5
-            opacity = 0.9
-        
-        # Highlight path edges
-        if path and u in path and v in path and path.index(u) == path.index(v) - 1:
-            color = 'purple'
-            weight = 6
-            opacity = 1.0
-        
-        popup_text = f"""
-        <div style='font-family: Arial; font-size: 12px;'>
-            <b>{data['name']}</b><br>
-            Distance: {data['distance']} km<br>
-            Traffic: {int(traffic*100)}%
-        </div>
-        """
-        
-        folium.PolyLine(
-            locations=[[u_lat, u_lon], [v_lat, v_lon]],
-            popup=folium.Popup(popup_text, max_width=200),
-            color=color,
-            weight=weight,
-            opacity=opacity,
-            tooltip=f"{data['name']} - {int(traffic*100)}% traffic"
-        ).add_to(m)
-    
-    # Add animated vehicle if path is provided
-    if path and len(path) > 1:
-        # Create a feature group for the vehicle
-        vehicle_group = folium.FeatureGroup(name="Vehicle")
-        
-        # Add the vehicle marker at the start position
-        start_node = path[0]
-        start_pos = pos[start_node]
-        start_lat = base_lat + start_pos[0] * scale
-        start_lon = base_lon + start_pos[1] * scale
-        
-        vehicle_marker = folium.Marker(
-            location=[start_lat, start_lon],
-            icon=folium.Icon(color='blue', icon='car', prefix='fa'),
-            tooltip="Vehicle"
-        )
-        vehicle_group.add_child(vehicle_marker)
-        m.add_child(vehicle_group)
-    
-    return m
-
-def simulate_traffic_change():
-    """Simulate traffic changes over time"""
-    data = load_sample_data()
-    
-    # Get current time to simulate rush hour effects
-    current_hour = datetime.now().hour
-    
-    # Rush hour factors (morning and evening rush hours)
-    is_morning_rush = 8 <= current_hour <= 10
-    is_evening_rush = 17 <= current_hour <= 19
-    
-    for road in data["roads"]:
-        # Base random adjustment
-        change = random.uniform(-0.15, 0.15)
-        
-        # Apply rush hour effects
-        if is_morning_rush:
-            # Increase traffic into major cities during morning rush
-            if road["to"] == "A" or road["to"] == "B" or road["to"] == "C":  # Delhi, Gurgaon, Noida
-                change += 0.2
-        elif is_evening_rush:
-            # Increase traffic out of major cities during evening rush
-            if road["from"] == "A" or road["from"] == "B" or road["from"] == "C":
-                change += 0.2
-        
-        # Apply the change with limits
-        road["traffic"] = max(0.1, min(0.95, road["traffic"] + change))
-    
-    return data
 
 def get_traffic_badge(traffic_level):
     """Return HTML for a traffic badge based on level"""
@@ -700,27 +143,112 @@ def get_traffic_badge(traffic_level):
     else:
         return f'<span class="traffic-badge traffic-high">{level}%</span>'
 
+def simulate_traffic_change():
+    """Simulate traffic changes over time"""
+    data = load_sample_data()
+    current_hour = datetime.now().hour
+    is_rush_hour = (8 <= current_hour <= 10) or (17 <= current_hour <= 19)
+    
+    for road in data["roads"]:
+        change = random.uniform(-0.15, 0.15)
+        if is_rush_hour:
+            if road["to"] in ["A", "B", "C"] or road["from"] in ["A", "B", "C"]:
+                change += 0.2
+        road["traffic"] = max(0.1, min(0.95, road["traffic"] + change))
+    
+    return data
+
+def create_map_visualization(G, path=None, map_type="folium"):
+    """Create map visualization based on type"""
+    if map_type == "folium":
+        base_lat, base_lon = 28.6139, 77.2090  # Delhi coordinates
+        scale = 0.05  # Scale factor for visualization
+        m = folium.Map(location=[base_lat, base_lon], zoom_start=9, tiles="CartoDB positron")
+        pos = nx.get_node_attributes(G, 'pos')
+        
+        for node, position in pos.items():
+            lat, lon = base_lat + position[0] * scale, base_lon + position[1] * scale
+            is_path_node = path and node in path
+            folium.Marker(
+                location=[lat, lon],
+                popup=f"<b>{G.nodes[node]['name']}</b>",
+                icon=folium.Icon(color='red' if is_path_node else 'blue', icon='info-sign')
+            ).add_to(m)
+        
+        for u, v, data in G.edges(data=True):
+            u_lat, u_lon = base_lat + pos[u][0] * scale, base_lon + pos[u][1] * scale
+            v_lat, v_lon = base_lat + pos[v][0] * scale, base_lon + pos[v][1] * scale
+            
+            traffic = data['traffic']
+            color = 'green' if traffic < 0.3 else 'orange' if traffic < 0.7 else 'red'
+            weight = 3 if traffic < 0.3 else 4 if traffic < 0.7 else 5
+            
+            is_path_edge = path and u in path and v in path and path.index(u) == path.index(v) - 1
+            if is_path_edge:
+                color, weight = 'purple', 6
+            
+            folium.PolyLine(
+                locations=[[u_lat, u_lon], [v_lat, v_lon]],
+                popup=f"<b>{data['name']}</b><br>Distance: {data['distance']} km<br>Traffic: {int(traffic*100)}%",
+                color=color, weight=weight, opacity=0.8
+            ).add_to(m)
+        
+        return m
+    elif map_type == "plotly":
+        pos = nx.get_node_attributes(G, 'pos')
+        node_x, node_y = zip(*[pos[node] for node in G.nodes()])
+        
+        node_trace = go.Scatter(
+            x=node_x, y=node_y, mode='markers+text',
+            text=[G.nodes[node]['name'] for node in G.nodes()],
+            textposition="top center", textfont=dict(size=10),
+            marker=dict(color='#FF6B35', size=20, line_width=2, line=dict(color='white')),
+            hovertext=[f"City: {G.nodes[node]['name']}" for node in G.nodes()]
+        )
+        
+        edge_traces = []
+        for u, v in G.edges():
+            x0, y0 = pos[u]
+            x1, y1 = pos[v]
+            traffic = G[u][v]['traffic']
+            
+            color = 'rgba(76, 175, 80, 0.7)' if traffic < 0.3 else 'rgba(255, 152, 0, 0.7)' if traffic < 0.7 else 'rgba(244, 67, 54, 0.7)'
+            width = 2 + traffic * 3
+            
+            is_path_edge = path and u in path and v in path and path.index(u) == path.index(v) - 1
+            if is_path_edge:
+                color, width = 'rgba(63, 81, 181, 1.0)', 5
+            
+            edge_traces.append(go.Scatter(
+                x=[x0, x1, None], y=[y0, y1, None],
+                line=dict(width=width, color=color),
+                hoverinfo='text', mode='lines',
+                text=f"Road: {G[u][v]['name']}<br>Distance: {G[u][v]['distance']} km<br>Traffic: {int(traffic*100)}%"
+            ))
+        
+        fig = go.Figure(
+            data=edge_traces + [node_trace],
+            layout=go.Layout(
+                title='NCR Traffic Network', showlegend=False, hovermode='closest',
+                margin=dict(b=20, l=5, r=5, t=40),
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                plot_bgcolor='rgba(248,249,250,1)', paper_bgcolor='rgba(248,249,250,1)'
+            )
+        )
+        
+        return fig
+
 def main():
     # Sidebar
     st.sidebar.markdown('<p class="main-header">🚦 Smart Traffic</p>', unsafe_allow_html=True)
     st.sidebar.markdown('<p class="sub-header">Flow Optimizer</p>', unsafe_allow_html=True)
     
-    # Add time of day indicator in sidebar
+    # Time indicator
     current_time = datetime.now().strftime("%H:%M")
     current_hour = datetime.now().hour
-    
-    if 5 <= current_hour < 12:
-        time_greeting = "Good Morning"
-        time_icon = "🌅"
-    elif 12 <= current_hour < 17:
-        time_greeting = "Good Afternoon"
-        time_icon = "☀️"
-    elif 17 <= current_hour < 21:
-        time_greeting = "Good Evening"
-        time_icon = "🌆"
-    else:
-        time_greeting = "Good Night"
-        time_icon = "🌙"
+    time_icon = "🌅" if 5 <= current_hour < 12 else "☀️" if 12 <= current_hour < 17 else "🌆" if 17 <= current_hour < 21 else "🌙"
+    time_greeting = "Good Morning" if 5 <= current_hour < 12 else "Good Afternoon" if 12 <= current_hour < 17 else "Good Evening" if 17 <= current_hour < 21 else "Good Night"
     
     st.sidebar.markdown(f"""
     <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 20px;">
@@ -730,20 +258,12 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### Quick Navigation")
-    
-    # App sections
+    # App tabs
     tab1, tab2, tab3, tab4 = st.tabs(["🚗 Route Optimizer", "🔄 Traffic Simulation", "📊 Algorithm Comparison", "ℹ️ About"])
     
+    # Tab 1: Route Optimizer
     with tab1:
         st.markdown('<p class="main-header">🚗 Smart Route Optimizer</p>', unsafe_allow_html=True)
-        st.markdown("""
-        <p class="info-text">
-        Find the optimal route between two locations in the National Capital Region (NCR) considering current traffic conditions.
-        The system uses advanced graph algorithms to calculate the most efficient path.
-        </p>
-        """, unsafe_allow_html=True)
         
         col1, col2 = st.columns(2)
         
@@ -775,6 +295,7 @@ def main():
                 with st.spinner("Calculating optimal route..."):
                     start_time = time.time()
                     
+                    # Run selected algorithm
                     if algorithm == "Dijkstra's Algorithm":
                         distance, path = dijkstra_algorithm(G, source_node, dest_node)
                     elif algorithm == "A* Algorithm":
@@ -785,26 +306,10 @@ def main():
                     computation_time = time.time() - start_time
                     
                     if path:
-                        # Highlight the path in the graph
-                        for u, v in zip(path[:-1], path[1:]):
-                            G[u][v]['color'] = 'red'
-                            G[u][v]['width'] = 4
-                        
                         # Calculate metrics
-                        total_distance = 0
-                        total_traffic_score = 0
-                        road_names = []
-                        
-                        for i in range(len(path)-1):
-                            u, v = path[i], path[i+1]
-                            total_distance += G[u][v]['distance']
-                            total_traffic_score += G[u][v]['traffic']
-                            road_names.append(G[u][v]['name'])
-                        
-                        avg_traffic = total_traffic_score / (len(path)-1) if len(path) > 1 else 0
-                        
-                        # Estimate travel time (in minutes)
-                        # Assuming average speed of 60 km/h with no traffic, reduced by traffic factor
+                        total_distance = sum(G[path[i]][path[i+1]]['distance'] for i in range(len(path)-1))
+                        total_traffic = sum(G[path[i]][path[i+1]]['traffic'] for i in range(len(path)-1))
+                        avg_traffic = total_traffic / (len(path)-1)
                         avg_speed = 60 * (1 - avg_traffic * 0.7)  # km/h
                         travel_time = (total_distance / avg_speed) * 60  # minutes
                         
@@ -812,31 +317,29 @@ def main():
                         st.markdown('<div class="card metric-card">', unsafe_allow_html=True)
                         st.markdown(f"### Route Summary")
                         
-                        # Create a more visual path representation
                         path_cities = [f"{G.nodes[node]['name']}" for node in path]
-                        path_display = " → ".join(path_cities)
-                        st.markdown(f"**Route:** {path_display}")
+                        st.markdown(f"**Route:** {' → '.join(path_cities)}")
                         
                         col1a, col2a, col3a = st.columns(3)
                         with col1a:
                             st.metric("Total Distance", f"{total_distance:.1f} km")
                         with col2a:
-                            traffic_html = get_traffic_badge(avg_traffic)
-                            st.markdown(f"**Traffic Level:**<br>{traffic_html}", unsafe_allow_html=True)
+                            st.markdown(f"**Traffic Level:**<br>{get_traffic_badge(avg_traffic)}", unsafe_allow_html=True)
                         with col3a:
                             st.metric("Est. Travel Time", f"{travel_time:.0f} min")
                         
                         st.markdown(f"**Computation Time:** {computation_time*1000:.2f} ms")
                         
-                        # Display route directions
+                        # Display directions
                         st.markdown("### Turn-by-Turn Directions")
-                        for i, road in enumerate(road_names):
+                        for i in range(len(path)-1):
                             from_city = G.nodes[path[i]]['name']
                             to_city = G.nodes[path[i+1]]['name']
-                            traffic_level = G[path[i]][path[i+1]]['traffic']
-                            traffic_html = get_traffic_badge(traffic_level)
+                            road_name = G[path[i]][path[i+1]]['name']
+                            distance = G[path[i]][path[i+1]]['distance']
+                            traffic = G[path[i]][path[i+1]]['traffic']
                             
-                            st.markdown(f"{i+1}. Take <span class='highlight'>{road}</span> from {from_city} to {to_city} ({G[path[i]][path[i+1]]['distance']} km) {traffic_html}", unsafe_allow_html=True)
+                            st.markdown(f"{i+1}. Take <span class='highlight'>{road_name}</span> from {from_city} to {to_city} ({distance} km) {get_traffic_badge(traffic)}", unsafe_allow_html=True)
                         
                         st.markdown('</div>', unsafe_allow_html=True)
                     else:
@@ -849,7 +352,7 @@ def main():
             st.markdown("### NCR Traffic Network")
             
             # Create tabs for different visualizations
-            map_tab1, map_tab2, map_tab3 = st.tabs(["Network Graph", "Interactive Map", "Animated Route"])
+            map_tab1, map_tab2 = st.tabs(["Network Graph", "Interactive Map"])
             
             with map_tab1:
                 # Visualize the graph
@@ -858,28 +361,14 @@ def main():
             
             with map_tab2:
                 # Create interactive map
-                m = create_folium_map(G, path=path if 'path' in locals() else None)
+                m = create_map_visualization(G, path=path if 'path' in locals() else None, map_type="folium")
                 folium_static(m)
-            
-            with map_tab3:
-                if 'path' in locals() and path:
-                    st.markdown("### Route Animation")
-                    # Create animated graph using Plotly
-                    fig = create_plotly_animated_graph(G, path)
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("Calculate a route first to see the animation")
             
             st.markdown('</div>', unsafe_allow_html=True)
     
+    # Tab 2: Traffic Simulation
     with tab2:
         st.markdown('<p class="main-header">🔄 Traffic Simulation</p>', unsafe_allow_html=True)
-        st.markdown("""
-        <p class="info-text">
-        Simulate changing traffic conditions in the NCR and observe how they affect optimal routes.
-        This helps understand the dynamic nature of urban traffic patterns throughout the day.
-        </p>
-        """, unsafe_allow_html=True)
         
         col1, col2 = st.columns([1, 2])
         
@@ -896,33 +385,25 @@ def main():
                     del st.session_state.simulation_data
                 st.success("Traffic conditions reset to default!")
             
-            # Display traffic conditions table
+            # Display traffic table
             st.markdown("### Current Traffic Conditions")
-            
             data_to_display = st.session_state.get('simulation_data', load_sample_data())
             
             # Create a more visual traffic table
             roads_df = pd.DataFrame(data_to_display["roads"])
-            
-            # Add city names instead of just node IDs
             roads_df['from_city'] = roads_df['from'].apply(lambda x: data_to_display["intersections"][x]["name"])
             roads_df['to_city'] = roads_df['to'].apply(lambda x: data_to_display["intersections"][x]["name"])
-            
-            # Format traffic as HTML badges
             roads_df['traffic_html'] = roads_df['traffic'].apply(get_traffic_badge)
             
-            # Create a styled dataframe
             styled_df = pd.DataFrame({
                 'Road': roads_df['name'],
                 'From': roads_df['from_city'],
                 'To': roads_df['to_city'],
-                'Distance (km)': roads_df['distance'],
+                'Distance': roads_df['distance'],
                 'Traffic': roads_df['traffic_html']
             })
             
-            # Display with HTML rendering for the badges
             st.write(styled_df.to_html(escape=False, index=False), unsafe_allow_html=True)
-            
             st.markdown('</div>', unsafe_allow_html=True)
         
         with col2:
@@ -933,29 +414,15 @@ def main():
             current_data = st.session_state.get('simulation_data', load_sample_data())
             G = create_graph_from_data(current_data, consider_traffic=True)
             
-            # Create tabs for static and animated visualizations
-            vis_tab1, vis_tab2 = st.tabs(["Static View", "Animated Simulation"])
-            
-            with vis_tab1:
-                # Visualize
-                fig = visualize_graph(G, title="Current NCR Traffic Conditions")
-                st.pyplot(fig)
-            
-            with vis_tab2:
-                # Create animated visualization
-                fig = create_plotly_animated_graph(G)
-                st.plotly_chart(fig, use_container_width=True)
+            # Visualize
+            fig = visualize_graph(G, title="Current NCR Traffic Conditions")
+            st.pyplot(fig)
             
             st.markdown('</div>', unsafe_allow_html=True)
     
+    # Tab 3: Algorithm Comparison
     with tab3:
         st.markdown('<p class="main-header">📊 Algorithm Comparison</p>', unsafe_allow_html=True)
-        st.markdown("""
-        <p class="info-text">
-        Compare different routing algorithms to understand their performance characteristics.
-        This helps in selecting the most appropriate algorithm for specific traffic scenarios in the NCR.
-        </p>
-        """, unsafe_allow_html=True)
         
         st.markdown('<div class="card">', unsafe_allow_html=True)
         
@@ -980,151 +447,64 @@ def main():
             with st.spinner("Running comparison..."):
                 results = []
                 
-                # Run Dijkstra's Algorithm
+                # Run all algorithms and time them
                 start_time = time.time()
                 dijkstra_dist, dijkstra_path = dijkstra_algorithm(G, source_node, dest_node)
                 dijkstra_time = time.time() - start_time
                 
-                # Run A* Algorithm
                 start_time = time.time()
                 astar_dist, astar_path = astar_algorithm(G, source_node, dest_node)
                 astar_time = time.time() - start_time
                 
-                # Run Bellman-Ford Algorithm
                 start_time = time.time()
                 bellman_ford_dist, bellman_ford_path = bellman_ford_algorithm(G, source_node, dest_node)
                 bellman_ford_time = time.time() - start_time
                 
-                # Format paths with city names
+                # Format results
                 def format_path(path):
-                    if not path:
-                        return "No path found"
-                    return " → ".join([f"{data['intersections'][node]['name']}" for node in path])
+                    return "No path found" if not path else " → ".join([f"{data['intersections'][node]['name']}" for node in path])
                 
                 # Collect results
                 results.append({
                     "Algorithm": "Dijkstra's Algorithm",
                     "Path": format_path(dijkstra_path),
                     "Distance (km)": f"{dijkstra_dist:.2f}" if dijkstra_path else "N/A",
-                    "Computation Time (ms)": f"{dijkstra_time*1000:.2f}",
-                    "Path Length": len(dijkstra_path) - 1 if dijkstra_path else 0
+                    "Computation Time (ms)": f"{dijkstra_time*1000:.2f}"
                 })
                 
                 results.append({
                     "Algorithm": "A* Algorithm",
                     "Path": format_path(astar_path),
                     "Distance (km)": f"{astar_dist:.2f}" if astar_path else "N/A",
-                    "Computation Time (ms)": f"{astar_time*1000:.2f}",
-                    "Path Length": len(astar_path) - 1 if astar_path else 0
+                    "Computation Time (ms)": f"{astar_time*1000:.2f}"
                 })
                 
                 results.append({
                     "Algorithm": "Bellman-Ford Algorithm",
                     "Path": format_path(bellman_ford_path),
                     "Distance (km)": f"{bellman_ford_dist:.2f}" if bellman_ford_path else "N/A",
-                    "Computation Time (ms)": f"{bellman_ford_time*1000:.2f}",
-                    "Path Length": len(bellman_ford_path) - 1 if bellman_ford_path else 0
+                    "Computation Time (ms)": f"{bellman_ford_time*1000:.2f}"
                 })
                 
                 # Display results
-                results_df = pd.DataFrame(results)
-                st.dataframe(results_df, use_container_width=True)
+                st.dataframe(pd.DataFrame(results), use_container_width=True)
                 
-                # Create bar chart for computation time
+                # Create bar chart
                 fig = px.bar(
-                    results_df, 
+                    pd.DataFrame(results), 
                     x="Algorithm", 
-                    y=[float(t.split()[0]) for t in results_df["Computation Time (ms)"]],
+                    y=[float(t.split()[0]) for t in pd.DataFrame(results)["Computation Time (ms)"]],
                     labels={"y": "Computation Time (ms)"},
                     title="Algorithm Performance Comparison",
                     color="Algorithm",
                     color_discrete_sequence=["#FF6B35", "#4CAF50", "#3F51B5"]
                 )
                 
-                fig.update_layout(
-                    plot_bgcolor='rgba(248,249,250,1)',
-                    paper_bgcolor='rgba(248,249,250,1)',
-                    font=dict(size=12),
-                    margin=dict(l=40, r=40, t=50, b=40)
-                )
-                
                 st.plotly_chart(fig, use_container_width=True)
-                
-                # Display algorithm characteristics
-                st.markdown("### Algorithm Characteristics")
-                
-                characteristics = pd.DataFrame([
-                    {
-                        "Algorithm": "Dijkstra's Algorithm",
-                        "Time Complexity": "O(V² + E)",
-                        "Space Complexity": "O(V)",
-                        "Handles Negative Weights": "No",
-                        "Best Use Case": "Finding shortest paths in non-negative weighted graphs"
-                    },
-                    {
-                        "Algorithm": "A* Algorithm",
-                        "Time Complexity": "O(E)",
-                        "Space Complexity": "O(V)",
-                        "Handles Negative Weights": "No",
-                        "Best Use Case": "Finding paths with heuristic information available"
-                    },
-                    {
-                        "Algorithm": "Bellman-Ford Algorithm",
-                        "Time Complexity": "O(V·E)",
-                        "Space Complexity": "O(V)",
-                        "Handles Negative Weights": "Yes",
-                        "Best Use Case": "Detecting negative cycles and handling negative weights"
-                    }
-                ])
-                
-                st.dataframe(characteristics, use_container_width=True)
-                
-                # Visualize all paths on the same graph for comparison
-                if dijkstra_path and astar_path and bellman_ford_path:
-                    st.markdown("### Visual Path Comparison")
-                    
-                    # Create a copy of the graph for visualization
-                    G_viz = G.copy()
-                    
-                    # Create a figure with subplots
-                    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-                    
-                    # Get positions
-                    pos = nx.get_node_attributes(G, 'pos')
-                    
-                    # Plot each algorithm's path
-                    for i, (path, title) in enumerate([
-                        (dijkstra_path, "Dijkstra's Algorithm"),
-                        (astar_path, "A* Algorithm"),
-                        (bellman_ford_path, "Bellman-Ford Algorithm")
-                    ]):
-                        # Draw nodes
-                        nx.draw_networkx_nodes(G_viz, pos, node_size=500, 
-                                              node_color='#FF6B35', alpha=0.8, 
-                                              ax=axes[i])
-                        
-                        # Draw all edges
-                        nx.draw_networkx_edges(G_viz, pos, width=1, alpha=0.3, 
-                                              edge_color='gray', ax=axes[i])
-                        
-                        # Highlight path
-                        path_edges = list(zip(path, path[1:]))
-                        nx.draw_networkx_edges(G_viz, pos, edgelist=path_edges, 
-                                              width=3, edge_color='#3F51B5', 
-                                              ax=axes[i])
-                        
-                        # Draw labels
-                        nx.draw_networkx_labels(G_viz, pos, font_size=8, 
-                                               font_weight='bold', ax=axes[i])
-                        
-                        axes[i].set_title(title)
-                        axes[i].axis('off')
-                    
-                    plt.tight_layout()
-                    st.pyplot(fig)
         
         st.markdown('</div>', unsafe_allow_html=True)
     
+    # Tab 4: About
     with tab4:
         st.markdown('<p class="main-header">ℹ️ About This Project</p>', unsafe_allow_html=True)
         
@@ -1133,48 +513,32 @@ def main():
         ### Smart Traffic Flow Optimization System for NCR
         
         This application demonstrates the use of graph algorithms for optimizing traffic flow in the National Capital Region (NCR) of India.
-        It implements several key algorithms covered in the course:
+        It implements several key algorithms:
         
         - **Dijkstra's Algorithm**: A greedy algorithm that finds the shortest path between nodes in a graph
         - **A* Algorithm**: An extension of Dijkstra's that uses heuristics to speed up the search
         - **Bellman-Ford Algorithm**: An algorithm that computes shortest paths from a single source vertex to all other vertices
-        
-        ### Course Outcomes Addressed
-        
-        1. **CO1**: The application demonstrates asymptotic notations by analyzing algorithm complexity
-        2. **CO2**: It implements various algorithm paradigms including greedy algorithms
-        3. **CO5**: It applies Dijkstra's, Bellman-Ford, and other algorithms to solve real-world problems like traffic routing in the NCR
         
         ### Technologies Used
         
         - **Python**: Core programming language
         - **Streamlit**: Web application framework
         - **NetworkX**: Graph manipulation and analysis
-        - **Matplotlib & Plotly**: Data visualization and animations
+        - **Matplotlib & Plotly**: Data visualization
         - **Folium**: Interactive maps
-        - **Pandas**: Data manipulation
-        
-        ### Future Enhancements
-        
-        - Integration with real-time traffic data APIs from Indian traffic authorities
-        - Machine learning models to predict traffic patterns in the NCR
-        - More sophisticated traffic simulation models based on historical Delhi traffic data
-        - Support for multi-modal transportation routing including Delhi Metro
         """)
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Footer
     st.markdown(
-    """
-    <hr style="margin-top: 2rem; margin-bottom: 0.5rem;">
-    <div style='text-align: center; color: #3D52A0; font-size: 0.9rem;'>
-        🚦 <strong>Smart Traffic Flow Optimization System</strong><br>
-        Developed with DAA  using <a href="https://www.python.org" style="color: #7091E6;" target="_blank">Python</a> & 
-        <a href="https://streamlit.io" style="color: #7091E6;" target="_blank">Streamlit</a>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+        """
+        <div style='text-align: center; color: #3D52A0; font-size: 0.9rem; margin-top: 2rem;'>
+            🚦 <strong>Smart Traffic Flow Optimization System</strong><br>
+            Developed with DAA using Python & Streamlit
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
     main()
